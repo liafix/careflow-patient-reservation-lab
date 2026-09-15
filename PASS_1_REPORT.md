@@ -6,7 +6,7 @@ Pass 1 implements **Domain Contracts & Mock API Boundary**. No PASS 2+ user-faci
 
 ## Baseline Main Commit
 
-`7764eed5c30e2ca67e289383f9d21bfd5e8f1c7c` (merged PASS 0 foundation commit).
+`b62646284c571a033e19ed25cd8a33d71dca18d2` (main repository baseline).
 
 ## Files Added / Changed
 
@@ -16,10 +16,10 @@ Pass 1 implements **Domain Contracts & Mock API Boundary**. No PASS 2+ user-faci
 - `src/lib/api/types.ts`: `CareFlowApi` contract interface and input/output parameter types (`SearchProvidersInput`, `GetAvailabilityInput`).
 - `src/lib/api/index.ts`: Public API contract barrel export.
 - `src/lib/demo/fixtures/mockData.ts`: Synthetic fictional healthcare facility fixtures (`Central Care Clinic`, `River Health Point`, `Northside Medical Centre`) and generic service offerings.
-- `src/lib/demo/DemoCareFlowApi.ts`: In-memory `CareFlowApi` implementation supporting deterministic scenarios (`normal`, `slow`, `empty`, `error`, `slot-conflict`).
+- `src/lib/demo/DemoCareFlowApi.ts`: In-memory `CareFlowApi` implementation supporting deterministic scenarios (`normal`, `slow`, `empty`, `error`, `slot-conflict`) with hardened relationship validation on reservation creation.
 - `src/lib/demo/index.ts`: Public demo adapter barrel export.
-- `src/lib/demo/DemoCareFlowApi.test.ts`: Comprehensive PASS 1 unit test suite (10 unit tests).
-- `vitest.config.ts`: Added path alias resolution (`@` -> `./src`) for Vitest import analysis.
+- `src/lib/demo/DemoCareFlowApi.test.ts`: Comprehensive PASS 1 unit test suite (12 unit tests).
+- `vitest.config.ts`: Added path alias resolution (`@` -> `./src`) and automatic JSX runtime for Vitest.
 - `PASS_1_REPORT.md`: This report.
 
 ## Domain Contracts Implemented
@@ -35,7 +35,7 @@ Pass 1 implements **Domain Contracts & Mock API Boundary**. No PASS 2+ user-faci
 - `searchProviders(input?)`: Filter providers by query, city, service ID.
 - `getProvider(id)`: Lookup provider by ID or throw `CareFlowApiError("NOT_FOUND")`.
 - `getAvailability(input)`: Filter available slots by provider, service, date range.
-- `createReservation(input)`: Validate input and reserve slot, returning confirmed `Reservation`.
+- `createReservation(input)`: Validate input and slot/service/provider relationships, reserve slot, and return confirmed `Reservation`.
 - `listReservations()`: List all confirmed reservations in current demo session.
 
 ## Demo Scenarios Implemented
@@ -48,18 +48,20 @@ Pass 1 implements **Domain Contracts & Mock API Boundary**. No PASS 2+ user-faci
 
 ## Tests Added & Results
 
-- Unit tests added: `src/lib/demo/DemoCareFlowApi.test.ts` (10 tests)
+- Unit tests added: `src/lib/demo/DemoCareFlowApi.test.ts` (12 tests)
   - `provider search returns deterministic matches` (PASS)
   - `provider lookup success` (PASS)
   - `provider lookup NOT_FOUND` (PASS)
   - `availability filtered by provider and service` (PASS)
   - `empty scenario returns no matching results or availability` (PASS)
-  - `error scenario produces expected typed error` (PASS)
+  - `error scenario produces expected typed error` (PASS - strengthened with `await expect(...).rejects`)
   - `slot-conflict scenario produces typed SLOT_UNAVAILABLE error` (PASS)
+  - `reservation rejected when slot belongs to another service` (PASS)
+  - `reservation rejected when service is not offered by provider` (PASS)
   - `reservation creation succeeds in normal scenario` (PASS)
   - `created demo reservation can be returned by listReservations` (PASS)
   - `fixtures contain only synthetic/non-sensitive demo data` (PASS)
-- Total Unit Tests: 11 passed (10 demo API tests + 1 PASS 0 page test).
+- Total Unit Tests: 13 passed (12 demo API tests + 1 PASS 0 page test).
 - Total E2E Tests: 1 passed (`tests/e2e/smoke.spec.ts`).
 
 ## Executed Commands & Gate Results
@@ -70,13 +72,9 @@ Executed complete quality gate command:
 - `npm ci`: **PASS** (440 packages audited cleanly)
 - `npm run typecheck`: **PASS** (0 errors)
 - `npm run lint`: **PASS** (0 warnings/errors)
-- `npm test`: **PASS** (2 test suites, 11 tests passed)
+- `npm test`: **PASS** (2 test suites, 13 tests passed)
 - `npm run build`: **PASS** (Next.js build succeeded)
 - `npm run test:e2e`: **PASS** (Playwright smoke test passed)
-
-## Failures Encountered & Fixes Applied
-
-- **Vite Path Alias Resolution in Vitest:** Importing `@/domain` in unit tests threw `Failed to resolve import "@/domain"`. Fixed by adding `@` path alias resolution in `vitest.config.ts`.
 
 ## Confirmation Statements
 

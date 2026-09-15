@@ -65,33 +65,60 @@ describe("DemoCareFlowApi Unit Tests (PASS 1)", () => {
   it("error scenario produces expected typed error", async () => {
     const errorApi = new DemoCareFlowApi({ scenario: "error" });
 
-    try {
-      await errorApi.searchProviders();
-    } catch (err) {
-      expect(err).toBeInstanceOf(CareFlowApiError);
-      const apiErr = err as CareFlowApiError;
-      expect(apiErr.code).toBe("NETWORK_ERROR");
-      expect(apiErr.message).toContain("Simulated network error");
-    }
+    await expect(errorApi.searchProviders()).rejects.toThrow(CareFlowApiError);
+    await expect(errorApi.searchProviders()).rejects.toMatchObject({
+      code: "NETWORK_ERROR",
+      message: expect.stringContaining("Simulated network error"),
+    });
   });
 
   it("slot-conflict scenario produces typed SLOT_UNAVAILABLE error", async () => {
     const conflictApi = new DemoCareFlowApi({ scenario: "slot-conflict" });
 
-    try {
-      await conflictApi.createReservation({
+    const draft = {
+      providerId: "prv-central",
+      serviceId: "srv-preventive",
+      slotId: "slot-101",
+      firstName: "Ján",
+      email: "jan.novak@example.com",
+    };
+
+    await expect(conflictApi.createReservation(draft)).rejects.toThrow(CareFlowApiError);
+    await expect(conflictApi.createReservation(draft)).rejects.toMatchObject({
+      code: "SLOT_UNAVAILABLE",
+    });
+  });
+
+  it("reservation rejected when slot belongs to another service", async () => {
+    // slot-101 belongs to srv-preventive, try requesting srv-general with slot-101
+    await expect(
+      api.createReservation({
         providerId: "prv-central",
-        serviceId: "srv-preventive",
+        serviceId: "srv-general",
         slotId: "slot-101",
         firstName: "Ján",
         email: "jan.novak@example.com",
-      });
-      expect.fail("Should have thrown SLOT_UNAVAILABLE");
-    } catch (err) {
-      expect(err).toBeInstanceOf(CareFlowApiError);
-      const apiErr = err as CareFlowApiError;
-      expect(apiErr.code).toBe("SLOT_UNAVAILABLE");
-    }
+      }),
+    ).rejects.toMatchObject({
+      code: "VALIDATION_ERROR",
+      message: expect.stringContaining("does not belong to service"),
+    });
+  });
+
+  it("reservation rejected when service is not offered by provider", async () => {
+    // prv-river does not offer srv-checkup
+    await expect(
+      api.createReservation({
+        providerId: "prv-river",
+        serviceId: "srv-checkup",
+        slotId: "slot-201",
+        firstName: "Ján",
+        email: "jan.novak@example.com",
+      }),
+    ).rejects.toMatchObject({
+      code: "VALIDATION_ERROR",
+      message: expect.stringContaining("is not offered by provider"),
+    });
   });
 
   it("reservation creation succeeds in normal scenario", async () => {

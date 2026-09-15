@@ -174,13 +174,35 @@ export class DemoCareFlowApi implements CareFlowApi {
       );
     }
 
-    const slot = this.slots.find(
-      (s) => s.id === input.slotId && s.providerId === input.providerId,
-    );
+    if (!provider.serviceIds.includes(service.id)) {
+      throw new CareFlowApiError(
+        "VALIDATION_ERROR",
+        `Service '${service.id}' is not offered by provider '${provider.id}'.`,
+        { providerId: provider.id, serviceId: service.id },
+      );
+    }
+
+    const slot = this.slots.find((s) => s.id === input.slotId);
     if (!slot) {
       throw new CareFlowApiError(
         "NOT_FOUND",
-        `Slot with ID '${input.slotId}' not found for provider.`,
+        `Slot with ID '${input.slotId}' not found.`,
+      );
+    }
+
+    if (slot.providerId !== input.providerId) {
+      throw new CareFlowApiError(
+        "VALIDATION_ERROR",
+        `Slot '${input.slotId}' does not belong to provider '${input.providerId}'.`,
+        { slotId: input.slotId, expectedProviderId: slot.providerId, inputProviderId: input.providerId },
+      );
+    }
+
+    if (slot.serviceId !== input.serviceId) {
+      throw new CareFlowApiError(
+        "VALIDATION_ERROR",
+        `Slot '${input.slotId}' does not belong to service '${input.serviceId}'.`,
+        { slotId: input.slotId, expectedServiceId: slot.serviceId, inputServiceId: input.serviceId },
       );
     }
 
