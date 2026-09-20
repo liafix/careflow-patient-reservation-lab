@@ -13,7 +13,7 @@ export function SearchClient() {
   const searchParams = useSearchParams();
   const api = useCareFlowApi();
 
-  const [status, setStatus] = useState<SearchStatus>("loading");
+  const [status, setStatus] = useState<SearchStatus>("idle");
   const [providers, setProviders] = useState<Provider[]>([]);
   const [errorMessage, setErrorMessage] = useState<string | undefined>();
   const [errorCode, setErrorCode] = useState<string | undefined>();
@@ -24,6 +24,8 @@ export function SearchClient() {
     city: searchParams.get("city") ?? "",
     serviceId: searchParams.get("serviceId") ?? "",
   };
+
+  const hasSearchParams = Array.from(searchParams.keys()).length > 0;
 
   const executeSearch = useCallback(
     async (values: SearchFormValues) => {
@@ -48,10 +50,10 @@ export function SearchClient() {
         if (err instanceof CareFlowApiError) {
           setErrorMessage(err.message);
           setErrorCode(err.code);
-        } else if (err instanceof Error) {
-          setErrorMessage(err.message);
         } else {
-          setErrorMessage("An unexpected error occurred during search.");
+          // Generic user-safe message for non-CareFlowApi error to prevent raw error leaks
+          setErrorMessage("Vyskytla sa neočakávaná chyba. Skúste to znova neskôr.");
+          setErrorCode(undefined);
         }
         setProviders([]);
         setStatus("error");
@@ -61,8 +63,15 @@ export function SearchClient() {
   );
 
   useEffect(() => {
-    executeSearch(currentValues);
-  }, [searchParams, executeSearch]);
+    if (hasSearchParams) {
+      executeSearch(currentValues);
+    } else {
+      setStatus("idle");
+      setProviders([]);
+      setErrorMessage(undefined);
+      setErrorCode(undefined);
+    }
+  }, [searchParams, hasSearchParams, executeSearch]);
 
   const handleSubmit = (values: SearchFormValues) => {
     const params = new URLSearchParams();
@@ -70,8 +79,13 @@ export function SearchClient() {
     if (values.city) params.set("city", values.city);
     if (values.serviceId) params.set("serviceId", values.serviceId);
 
+    // If form is submitted without any filter, set 'submitted=true' so URL reflects explicit search
+    if (Array.from(params.keys()).length === 0) {
+      params.set("submitted", "true");
+    }
+
     const queryString = params.toString();
-    router.push(queryString ? `/search?${queryString}` : "/search");
+    router.push(`/search?${queryString}`);
   };
 
   const handleReset = () => {

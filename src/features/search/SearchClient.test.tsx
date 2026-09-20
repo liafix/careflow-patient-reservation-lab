@@ -32,7 +32,7 @@ describe("SearchClient", () => {
     },
   ];
 
-  it("invokes CareFlowApi searchProviders and renders success state", async () => {
+  it("starts in idle state on clean /search and does NOT invoke CareFlowApi", () => {
     const mockApi = {
       searchProviders: vi.fn().mockResolvedValue(sampleProviders),
       getProvider: vi.fn(),
@@ -47,21 +47,11 @@ describe("SearchClient", () => {
       </CareFlowApiProvider>
     );
 
-    expect(screen.getByRole("status")).toHaveTextContent("Vyhľadávam dostupných poskytovateľov");
-
-    await waitFor(() => {
-      expect(mockApi.searchProviders).toHaveBeenCalledWith({
-        query: undefined,
-        city: undefined,
-        serviceId: undefined,
-      });
-    });
-
-    expect(screen.getByText("Central Care Clinic")).toBeInTheDocument();
-    expect(screen.getByRole("status")).toHaveTextContent("Nájdení poskytovatelia: 1");
+    expect(screen.getByText("Zadajte vyhľadávacie kritériá")).toBeInTheDocument();
+    expect(mockApi.searchProviders).not.toHaveBeenCalled();
   });
 
-  it("initializes search parameters from URL and passes them to CareFlowApi", async () => {
+  it("executes search automatically when URL contains search parameters", async () => {
     mockSearchParams = new URLSearchParams("q=consultation&city=Bratislava&serviceId=srv-preventive");
 
     const mockApi = {
@@ -86,12 +76,13 @@ describe("SearchClient", () => {
       });
     });
 
+    expect(screen.getByText("Central Care Clinic")).toBeInTheDocument();
     expect(screen.getByLabelText("Kľúčové slovo")).toHaveValue("consultation");
     expect(screen.getByLabelText("Mesto")).toHaveValue("Bratislava");
     expect(screen.getByLabelText("Služba")).toHaveValue("srv-preventive");
   });
 
-  it("submitting search updates URL via router.push", async () => {
+  it("submitting search updates URL via router.push", () => {
     const mockApi = {
       searchProviders: vi.fn().mockResolvedValue(sampleProviders),
       getProvider: vi.fn(),
@@ -106,10 +97,6 @@ describe("SearchClient", () => {
       </CareFlowApiProvider>
     );
 
-    await waitFor(() => {
-      expect(mockApi.searchProviders).toHaveBeenCalled();
-    });
-
     fireEvent.change(screen.getByLabelText("Kľúčové slovo"), {
       target: { value: "River" },
     });
@@ -119,6 +106,8 @@ describe("SearchClient", () => {
   });
 
   it("renders accessible empty state when search returns no providers", async () => {
+    mockSearchParams = new URLSearchParams("q=nonexistent");
+
     const mockApi = {
       searchProviders: vi.fn().mockResolvedValue([]),
       getProvider: vi.fn(),
@@ -139,6 +128,8 @@ describe("SearchClient", () => {
   });
 
   it("renders accessible typed error state when CareFlowApi throws CareFlowApiError", async () => {
+    mockSearchParams = new URLSearchParams("q=test");
+
     const mockApi = {
       searchProviders: vi
         .fn()
@@ -162,5 +153,30 @@ describe("SearchClient", () => {
     expect(screen.getByText("Chyba pri vyhľadávaní")).toBeInTheDocument();
     expect(screen.getByText("NETWORK_ERROR")).toBeInTheDocument();
     expect(screen.getByText("Chyba siete v demo režime")).toBeInTheDocument();
+  });
+
+  it("renders generic Slovak user-safe error message for non-CareFlowApi errors", async () => {
+    mockSearchParams = new URLSearchParams("q=test");
+
+    const mockApi = {
+      searchProviders: vi.fn().mockRejectedValue(new Error("Database explosion secret details")),
+      getProvider: vi.fn(),
+      getAvailability: vi.fn(),
+      createReservation: vi.fn(),
+      listReservations: vi.fn(),
+    };
+
+    render(
+      <CareFlowApiProvider api={mockApi}>
+        <SearchClient />
+      </CareFlowApiProvider>
+    );
+
+    await waitFor(() => {
+      expect(screen.getByRole("alert")).toBeInTheDocument();
+    });
+
+    expect(screen.getByText("Vyskytla sa neočakávaná chyba. Skúste to znova neskôr.")).toBeInTheDocument();
+    expect(screen.queryByText("Database explosion secret details")).not.toBeInTheDocument();
   });
 });

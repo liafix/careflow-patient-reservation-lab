@@ -2,7 +2,7 @@
 
 ## Executive Summary
 * **Baseline SHA:** `bf43c3a25d891c83b8933d23d3c7fa568723f090`
-* **Pass Goal:** App Shell & Search UI
+* **Pass Goal:** App Shell & Search UI (with Review Hardening Fixes)
 * **Final Status:** REAL GREEN
 
 ---
@@ -20,36 +20,28 @@
 
 ---
 
-## 2. Architecture & Design
+## 2. Architecture, Design & Hardening Fixes
 
-### App Shell & Responsive Layout
+### App Shell & Layout Semantics
 * `Header` component with CareFlow logo, navigation links (`Domov`, `Vyhľadávanie`, disabled `Moje rezervácie`), and responsive mobile drawer toggle with ARIA expanded states.
 * `Disclaimer` component displaying the mandatory truthfulness notice regarding synthetic healthcare data and independence from internal PAP systems.
-* `AppShell` container enforcing semantic HTML (`<header>`, `<nav>`, `<main>`, `<aside>`, `<footer>`) and wrapping application routes with `CareFlowApiProvider`.
+* `AppShell` container enforcing semantic HTML (`<header>`, `<nav>`, `<main>`, `<aside>`, `<footer>`) by wrapping the disclaimer in a semantic `<footer>` element, and providing `CareFlowApiProvider` context.
+
+### Hardened `CareFlowApiContext`
+* `useCareFlowApi()` fails fast if invoked outside `CareFlowApiProvider` with developer-facing error: `"useCareFlowApi must be used within CareFlowApiProvider"`. Silently creating fallback API instances has been removed.
+
+### True Initial / Idle Search State
+* Opening `/search` cleanly without URL query parameters (`q`, `city`, `serviceId`) does **not** call `CareFlowApi.searchProviders()` automatically.
+* Shows a clear neutral initial prompt ("Zadajte vyhľadávacie kritériá") encouraging the user to enter query criteria or select filters.
+* Opening `/search` with URL search parameters or submitting the search form automatically triggers `CareFlowApi.searchProviders()`.
+
+### Hardened Error Presentation
+* Safe typed `CareFlowApiError` details (`code` and `message`) are displayed cleanly.
+* For unknown/non-`CareFlowApiError` exceptions, raw error messages and stack traces are suppressed and replaced with a user-safe Slovak message: `"Vyskytla sa neočakávaná chyba. Skúste to znova neskôr."`.
 
 ### URL-State Synchronization
-* Search form state is synchronized bidirectionally with URL query parameters:
-  * `q`: Free-text query (matches provider name, description, address).
-  * `city`: City filter (`Bratislava`, `Košice`).
-  * `serviceId`: Service identifier (`srv-preventive`, `srv-general`, `srv-checkup`, `srv-dental`).
-* Form initialization automatically populates controls from `useSearchParams()`.
-* Form submission uses `router.push('/search?...')`, preserving browser back/forward history, refreshability, and link shareability.
-
-### API Boundary Isolation
-* UI components consume the abstract `CareFlowApi` interface via React Context (`CareFlowApiProvider` / `useCareFlowApi()`).
-* Components **never** import mock fixture arrays (`FIXTURE_PROVIDERS`, etc.) directly.
-* Tests inject mock `CareFlowApi` instances through `CareFlowApiProvider`, verifying that future backend API substitution will require zero UI code changes.
-
-### Search States & Accessibility (a11y)
-* **Explicit States:**
-  * `loading`: Polite ARIA live region (`role="status"`, `aria-live="polite"`) announcing search progress.
-  * `success`: Summary heading ("Nájdení poskytovatelia: X") and provider card list.
-  * `empty`: Friendly empty message when 0 results match criteria.
-  * `typed error`: Catches `CareFlowApiError` and renders accessible alert (`role="alert"`, `aria-live="assertive"`). Raw stack traces are suppressed.
-* **Form & Focus Accessibility:**
-  * Explicit `<label>` elements linked via `htmlFor` to all form inputs.
-  * Keyboard navigation and submission supported (e.g., pressing Enter inside search input).
-  * Visible focus indicators on interactive controls.
+* Search form state is synchronized bidirectionally with URL query parameters (`q`, `city`, `serviceId`).
+* Submitting search updates URL via `router.push('/search?...')`, enabling browser back/forward, refresh safety, and shareable links.
 
 ---
 
@@ -95,22 +87,23 @@ The complete gate was executed sequentially and passed 100%:
    ✓ eslint . --max-warnings=0 passed with 0 warnings/errors
 
 4. npm test
-   ✓ 6 test files passed (27 tests total)
+   ✓ 6 test files passed (29 tests total)
      - src/lib/demo/DemoCareFlowApi.test.ts (12 tests)
-     - src/lib/api/CareFlowApiContext.test.tsx (2 tests)
+     - src/lib/api/CareFlowApiContext.test.tsx (3 tests)
      - src/components/shell/AppShell.test.tsx (1 test)
      - src/app/page.test.tsx (2 tests)
      - src/features/search/SearchForm.test.tsx (5 tests)
-     - src/features/search/SearchClient.test.tsx (5 tests)
+     - src/features/search/SearchClient.test.tsx (6 tests)
 
 5. npm run build
    ✓ Next.js production build succeeded
    ✓ Static routes generated for / and /search
 
 6. npm run test:e2e
-   ✓ 3 Playwright Chromium E2E tests passed
+   ✓ 4 Playwright Chromium E2E tests passed
      - smoke.spec.ts: App Shell loads with identity and disclaimer
-     - search.spec.ts: Golden path Landing -> Search -> Filter -> Submit -> Results
+     - search.spec.ts: Golden path Landing -> Search (Idle) -> Filter -> Submit -> Results
+     - search.spec.ts: Direct URL-backed search execution
      - search.spec.ts: Empty search result flow
 ```
 

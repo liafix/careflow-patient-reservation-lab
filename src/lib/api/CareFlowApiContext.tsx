@@ -24,8 +24,7 @@ export function CareFlowApiProvider({ api, children }: CareFlowApiProviderProps)
 export function useCareFlowApi(): CareFlowApi {
   const context = useContext(CareFlowApiContext);
   if (!context) {
-    // Fallback to a default instance if provider is missing
-    return new DemoCareFlowApi();
+    throw new Error("useCareFlowApi must be used within CareFlowApiProvider");
   }
   return context;
 }

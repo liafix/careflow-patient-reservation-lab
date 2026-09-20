@@ -8,7 +8,7 @@ vi.mock("next/navigation", () => ({
 }));
 
 describe("AppShell", () => {
-  it("renders the CareFlow brand header, navigation, children, and disclaimer", () => {
+  it("renders the CareFlow brand header, navigation, content, footer, and disclaimer", () => {
     render(
       <AppShell>
         <div data-testid="test-content">Test Page Content</div>
@@ -21,6 +21,7 @@ describe("AppShell", () => {
     expect(screen.getByRole("link", { name: "Vyhľadávanie" })).toBeInTheDocument();
     expect(screen.getByText("Moje rezervácie")).toBeInTheDocument();
     expect(screen.getByTestId("test-content")).toBeInTheDocument();
+    expect(screen.getByRole("contentinfo")).toBeInTheDocument(); // <footer> has role contentinfo
     expect(screen.getByText(/Nezávislý kandidátsky projekt/i)).toBeInTheDocument();
     expect(screen.getByText(/syntetické dáta/i)).toBeInTheDocument();
   });

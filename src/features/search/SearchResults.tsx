@@ -19,6 +19,26 @@ export function SearchResults({
   errorMessage,
   errorCode,
 }: SearchResultsProps) {
+  if (status === "idle") {
+    return (
+      <div
+        role="status"
+        aria-live="polite"
+        className="p-10 text-center bg-white rounded-2xl border border-slate-200/80 shadow-xs space-y-3"
+      >
+        <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-teal-50 text-teal-700 font-bold text-xl">
+          🩺
+        </div>
+        <h3 className="text-lg font-bold text-slate-900">
+          Zadajte vyhľadávacie kritériá
+        </h3>
+        <p className="text-sm text-slate-600 max-w-md mx-auto leading-relaxed">
+          Zadajte kľúčové slovo, zvoľte mesto alebo vyberte službu vo formulári vyššie a stlačte tlačidlo <strong>Vyhľadať</strong>.
+        </p>
+      </div>
+    );
+  }
+
   if (status === "loading") {
     return (
       <div
